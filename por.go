@@ -465,5 +465,10 @@ func main() {
 
 	fmt.Printf("Verifying proof...\n")
 	yes := verify_two(tau, q, mu, sigma, spk)
-	fmt.Printf("Result: %x!\n", yes)
+	fmt.Printf("Result: %t!\n", yes)
+	if yes {
+		os.Exit(0)
+	} else {
+		os.Exit(1)
+	}
 }
