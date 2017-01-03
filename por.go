@@ -207,7 +207,7 @@ import (
 	"bytes"
 //	"crypto"
 //	"crypto/sha512"
-//	"crypto/rand"
+	"crypto/rand"
 	"crypto/rsa"
 //	"encoding/binary"
 	"encoding/gob"
@@ -218,19 +218,11 @@ import (
 )
 
 func Keygen() (*rsa.PublicKey, *rsa.PrivateKey) {
-	spk := new(rsa.PublicKey)
-	spk.N = new(big.Int).SetInt64(3233)
-	spk.E = 17
-	ssk := new(rsa.PrivateKey)
-	ssk.PublicKey = *spk
-	ssk.D = new(big.Int).SetInt64(2753)
-	ssk.Primes = []*big.Int{new(big.Int).SetInt64(61),new(big.Int).SetInt64(53)}
-	return spk, ssk
-/*	ssk, err := rsa.GenerateKey(rand.Reader, 2048)
+	ssk, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		panic(err)
 	}
-	return &ssk.PublicKey, ssk*/
+	return &ssk.PublicKey, ssk
 }
 
 type Tau_zero struct {
