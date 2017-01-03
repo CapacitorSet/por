@@ -206,9 +206,9 @@ package main;
 import (
 	"bytes"
 	"crypto"
-	"crypto/sha512"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha512"
 	"encoding/binary"
 	"encoding/gob"
 	"fmt"
@@ -227,8 +227,8 @@ func Keygen() (*rsa.PublicKey, *rsa.PrivateKey) {
 
 type Tau_zero struct {
 	name []byte
-	n int64
-	U []big.Int
+	n    int64
+	U    []big.Int
 }
 
 type Tau struct {
@@ -357,7 +357,7 @@ func verify_one(tau Tau, spk *rsa.PublicKey) []QElement {
 				panic(err)
 			}
 			if I_bignum.Cmp(big.NewInt(0)) == +1 {
-				break;
+				break
 			}
 		}
 		ret[i].I = I_bignum.Int64()
@@ -371,7 +371,7 @@ func verify_one(tau Tau, spk *rsa.PublicKey) []QElement {
 			}
 			Q_bignum = new(big.Int).SetBytes(Q_bytes)
 			if Q_bignum.Cmp(big.NewInt(0)) == +1 {
-				break;
+				break
 			}
 		}
 		ret[i].V = Q_bignum.Int64()
