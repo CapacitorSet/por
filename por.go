@@ -209,6 +209,7 @@ import (
 	"crypto/sha512"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/binary"
 	"encoding/gob"
 	"fmt"
 	"math"
@@ -225,7 +226,7 @@ func Keygen() (*rsa.PublicKey, *rsa.PrivateKey) {
 }
 
 type Tau_zero struct {
-	name big.Int
+	name []byte
 	n int64
 	U []big.Int
 }
@@ -258,16 +259,23 @@ func split(file *os.File) (M [][]byte, S int64, N int64) {
 	return matrix, s, n
 }
 
+func hashNameI(name []byte, i int64) *big.Int {
+	i_bytes := make([]byte, 4)
+	binary.PutVarint(i_bytes, i)
+	hashArgument := append(name, i_bytes...)
+	hash_array := sha512.Sum512(hashArgument)
+	return new(big.Int).SetBytes(hash_array[:])
+}
+
 func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 	matrix, s, n := split(file)
 	tau_zero := Tau_zero{n: n}
 
-/*	tau_zero.name = make([]byte, 512)
-	_, err = rand.Read(tau_zero.name)
+	tau_zero.name = make([]byte, 512)
+	_, err := rand.Read(tau_zero.name)
 	if err != nil {
 		panic(err)
-	}*/
-	tau_zero.name = *new(big.Int).SetInt64(3)
+	}
 
 	tau_zero.U = make([]big.Int, s)
 /*	for i := int64 (0); i < s; i++ {
@@ -283,7 +291,7 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 
 	var tau_zero_bytes bytes.Buffer
 	enc := gob.NewEncoder(&tau_zero_bytes)
-	err := enc.Encode(tau_zero)
+	err = enc.Encode(tau_zero)
 	if err != nil {
 		panic(err)
 	}
@@ -301,8 +309,7 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 		binary.PutVarint(i_bytes, i)
 		hashArgument := append(tau_zero.name, i_bytes...)
 		hash := sha512.Sum512(hashArgument)*/
-		hash := new(big.Int).Mul(&tau_zero.name, new(big.Int).SetInt64(i + 1))
-		hash_bigint := hash
+		hash_bigint := hashNameI(tau_zero.name, i + 1)
 /*		hash_bigint := new(big.Int)
 		hash_bigint.SetBytes(hash[:])*/
 
@@ -398,12 +405,7 @@ func verify_two(tau Tau, q []QElement, mus []*big.Int, sigma *big.Int, spk *rsa.
 	// Todo: check that the values are in range
 	first := new(big.Int).SetInt64(1)
 	for _, qelem := range q {
-/*		i_bytes := make([]byte, 4)
-		binary.PutVarint(i_bytes, i)
-		hashArgument := append(tau.Tau_zero.name.Bytes(), i_bytes...)
-		hash_array := sha512.Sum512(hashArgument)
-		hash := new(big.Int).SetBytes(hash_array[:])*/
-		hash := new(big.Int).Mul(&tau.Tau_zero.name, new(big.Int).SetInt64(qelem.I))
+		hash := hashNameI(tau.Tau_zero.name, qelem.I)
 		hash.Exp(hash, new(big.Int).SetInt64(qelem.V), spk.N)
 		first.Mul(first, hash)
 	}
