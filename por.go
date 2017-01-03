@@ -236,8 +236,8 @@ type Tau struct {
 	signature []byte
 }
 
-func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
-	// constants
+func split(file *os.File) (M [][]byte, S int64, N int64) {
+	file.Seek(0, 0)
 	s := int64 (3)
 
 	fileInfo, err := file.Stat()
@@ -256,7 +256,11 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 		}
 		matrix[i] = piece
 	}
+	return matrix, s, n
+}
 
+func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
+	matrix, s, n := split(file)
 	tau_zero := Tau_zero{n: n}
 
 /*	tau_zero.name = make([]byte, 512)
@@ -280,7 +284,7 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 
 	var tau_zero_bytes bytes.Buffer
 	enc := gob.NewEncoder(&tau_zero_bytes)
-	err = enc.Encode(tau_zero)
+	err := enc.Encode(tau_zero)
 	if err != nil {
 		panic(err)
 	}
@@ -293,13 +297,13 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 	}
 	tau := Tau{Tau_zero: tau_zero, signature: t_0_signature}
 
-	sigma := make([]*big.Int, n)
+	sigmas := make([]*big.Int, n)
 	for i := int64 (0); i < n; i++ {
 /*		i_bytes := make([]byte, 4)
 		binary.PutVarint(i_bytes, i)
 		hashArgument := append(tau_zero.name, i_bytes...)
 		hash := sha512.Sum512(hashArgument)*/
-		hash := new(big.Int).Mul(&tau_zero.name, new(big.Int).SetInt64(i))
+		hash := new(big.Int).Mul(&tau_zero.name, new(big.Int).SetInt64(i + 1))
 		hash_bigint := hash
 /*		hash_bigint := new(big.Int)
 		hash_bigint.SetBytes(hash[:])*/
@@ -311,9 +315,9 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 		}
 
 		innerProduct := new(big.Int).Mul(hash_bigint, productory)
-		sigma[i] = new(big.Int).Exp(innerProduct, ssk.D, ssk.PublicKey.N)
+		sigmas[i] = new(big.Int).Exp(innerProduct, ssk.D, ssk.PublicKey.N)
 	}
-	return tau, sigma
+	return tau, sigmas
 }
 
 type QElement struct {
@@ -339,8 +343,8 @@ func verify_one(tau Tau, spk *rsa.PublicKey) []QElement {
 	l := int64 (2)
 	// n_bigint := big.NewInt(tau.Tau_zero.n)
 	ret := make([]QElement, l)
-	ret[0] = QElement{0, 1}
-	ret[1] = QElement{2, 2}
+	ret[0] = QElement{1, 1}
+	ret[1] = QElement{3, 2}
 	return ret
 /*	for i := int64 (0); i < l; i++ {
 		I_bignum := new(big.Int)
@@ -366,31 +370,14 @@ func verify_one(tau Tau, spk *rsa.PublicKey) []QElement {
 }
 
 func prove(q []QElement, authenticators []*big.Int, spk *rsa.PublicKey, file *os.File) (_Mu []*big.Int, _Sigma *big.Int) {
-	// constants
-	s := int64 (3)
-
-	fileInfo, err := file.Stat()
-	if err != nil {
-		panic(err)
-	}
-	size := fileInfo.Size()
-	n := int64 (math.Ceil(float64 (size / s)))
-	matrix := make([][]byte, size)
-	file.Seek(0, 0)
-	for i := int64 (0); i < n; i++ {
-		piece := make([]byte, s)
-		_, err := file.Read(piece)
-		if err != nil {
-			panic(err)
-		}
-		matrix[i] = piece
-	}
+	matrix, s, _ := split(file)
 
 	mu := make([]*big.Int, s)
 	for j := int64 (0); j < s; j++ {
 		mu_j := big.NewInt(0)
 		for _, qelem := range q {
-			product := new(big.Int).Mul(new(big.Int).SetInt64(qelem.V), new(big.Int).SetBytes([]byte{matrix[qelem.I][j]}))
+			char := new(big.Int).SetBytes([]byte{matrix[qelem.I - 1][j]})
+			product := new(big.Int).Mul(new(big.Int).SetInt64(qelem.V), char)
 			mu_j.Add(mu_j, product)
 		}
 		mu[j] = mu_j
@@ -398,7 +385,7 @@ func prove(q []QElement, authenticators []*big.Int, spk *rsa.PublicKey, file *os
 
 	sigma := new(big.Int).SetInt64(1)
 	for _, qelem := range q {
-		sigma.Mul(sigma, new(big.Int).Exp(authenticators[qelem.I], new(big.Int).SetInt64(qelem.V), spk.N))
+		sigma.Mul(sigma, new(big.Int).Exp(authenticators[qelem.I - 1], new(big.Int).SetInt64(qelem.V), spk.N))
 	}
 	sigma.Mod(sigma, spk.N)
 	return mu, sigma
@@ -414,18 +401,19 @@ func verify_two(tau Tau, q []QElement, mus []*big.Int, sigma *big.Int, spk *rsa.
 		hash_array := sha512.Sum512(hashArgument)
 		hash := new(big.Int).SetBytes(hash_array[:])*/
 		hash := new(big.Int).Mul(&tau.Tau_zero.name, new(big.Int).SetInt64(qelem.I))
-		first.Mul(first, hash.Exp(hash, new(big.Int).SetInt64(qelem.V), spk.N))
+		hash.Exp(hash, new(big.Int).SetInt64(qelem.V), spk.N)
+		first.Mul(first, hash)
 	}
 	first.Mod(first, spk.N)
 
 	second := new(big.Int).SetInt64(1)
-	s := int64 (2)
+	s := int64 (3)
 	for j := int64 (0); j < s; j++ {
 		second.Mul(second, new(big.Int).Exp(&tau.Tau_zero.U[j], mus[j], spk.N))
 	}
-	second.Mod(first, spk.N)
+	second.Mod(second, spk.N)
 
-	return new(big.Int).Mod(new(big.Int).Mul(first, second), spk.N).Cmp(new(big.Int).Mod(sigma, spk.N)) == 0
+	return new(big.Int).Mod(new(big.Int).Mul(first, second), spk.N).Cmp(new(big.Int).Exp(sigma, new(big.Int).SetInt64(int64 (spk.E)), spk.N)) == 0
 }
 
 func main() {
