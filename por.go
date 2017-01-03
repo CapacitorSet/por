@@ -278,16 +278,13 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 	}
 
 	tau_zero.U = make([]big.Int, s)
-/*	for i := int64 (0); i < s; i++ {
+	for i := int64 (0); i < s; i++ {
 		result, err := rand.Int(rand.Reader, ssk.PublicKey.N)
 		if err != nil {
 			panic(err)
 		}
 		tau_zero.U[i] = *result
-	}*/
-	tau_zero.U[0] = *new(big.Int).SetInt64(2)
-	tau_zero.U[1] = *new(big.Int).SetInt64(2)
-	tau_zero.U[2] = *new(big.Int).SetInt64(2)
+	}
 
 	var tau_zero_bytes bytes.Buffer
 	enc := gob.NewEncoder(&tau_zero_bytes)
