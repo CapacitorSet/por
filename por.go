@@ -205,8 +205,8 @@ package main;
 
 import (
 	"bytes"
-//	"crypto"
-//	"crypto/sha512"
+	"crypto"
+	"crypto/sha512"
 	"crypto/rand"
 	"crypto/rsa"
 //	"encoding/binary"
@@ -289,9 +289,8 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 		panic(err)
 	}
 
-	// hashed_t_0 := sha512.Sum512(tau_zero_bytes.Bytes())
-	// t_0_signature, err := rsa.SignPKCS1v15(nil, ssk, crypto.SHA512, hashed_t_0[:])
-	t_0_signature := make([]byte, 1)
+	hashed_t_0 := sha512.Sum512(tau_zero_bytes.Bytes())
+	t_0_signature, err := rsa.SignPKCS1v15(nil, ssk, crypto.SHA512, hashed_t_0[:])
 	if err != nil {
 		panic(err)
 	}
@@ -333,11 +332,12 @@ func verify_one(tau Tau, spk *rsa.PublicKey) []QElement {
 	if err != nil {
 		panic(err)
 	}
-	/*hashed_t_0 := sha512.Sum512(tau_zero_bytes.Bytes())
+
+	hashed_t_0 := sha512.Sum512(tau_zero_bytes.Bytes())
 	err = rsa.VerifyPKCS1v15(spk, crypto.SHA512, hashed_t_0[:], tau.signature)
 	if err != nil {
 		panic(err)
-	}*/
+	}
 
 	// l := tau.Tau_zero.n / 2
 	l := int64 (2)
