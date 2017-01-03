@@ -240,13 +240,14 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 	// constants
 	s := int64 (3)
 
-/*	fileInfo, err := file.Stat()
+	fileInfo, err := file.Stat()
 	if err != nil {
 		panic(err)
 	}
 	size := fileInfo.Size()
 	n := int64 (math.Ceil(float64 (size / s)))
-	matrix := make([][]byte, size)
+	// matrix is indexed as m_ij, so the first dimension has n items and the second has s.
+	matrix := make([][]byte, n)
 	for i := int64 (0); i < n; i++ {
 		piece := make([]byte, s)
 		_, err := file.Read(piece)
@@ -254,12 +255,7 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 			panic(err)
 		}
 		matrix[i] = piece
-	}*/
-	n := int64(3)
-	matrix := make([][]byte, n)
-	matrix[0] = []byte{0, 1, 0}
-	matrix[1] = []byte{1, 0, 1}
-	matrix[2] = []byte{0, 1, 0}
+	}
 
 	tau_zero := Tau_zero{n: n}
 
@@ -284,7 +280,7 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 
 	var tau_zero_bytes bytes.Buffer
 	enc := gob.NewEncoder(&tau_zero_bytes)
-	err := enc.Encode(tau_zero)
+	err = enc.Encode(tau_zero)
 	if err != nil {
 		panic(err)
 	}
@@ -304,7 +300,6 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 		hashArgument := append(tau_zero.name, i_bytes...)
 		hash := sha512.Sum512(hashArgument)*/
 		hash := new(big.Int).Mul(&tau_zero.name, new(big.Int).SetInt64(i))
-		fmt.Printf("For i=%x, hash=%x.\n", i, hash.Int64())
 		hash_bigint := hash
 /*		hash_bigint := new(big.Int)
 		hash_bigint.SetBytes(hash[:])*/
@@ -372,7 +367,7 @@ func verify_one(tau Tau, spk *rsa.PublicKey) []QElement {
 
 func prove(q []QElement, authenticators []*big.Int, spk *rsa.PublicKey, file *os.File) (_Mu []*big.Int, _Sigma *big.Int) {
 	// constants
-	s := int64 (2)
+	s := int64 (3)
 
 	fileInfo, err := file.Stat()
 	if err != nil {
@@ -419,7 +414,6 @@ func verify_two(tau Tau, q []QElement, mus []*big.Int, sigma *big.Int, spk *rsa.
 		hash_array := sha512.Sum512(hashArgument)
 		hash := new(big.Int).SetBytes(hash_array[:])*/
 		hash := new(big.Int).Mul(&tau.Tau_zero.name, new(big.Int).SetInt64(qelem.I))
-		fmt.Printf("For i=%x, hash=%x.\n", qelem.I, hash)
 		first.Mul(first, hash.Exp(hash, new(big.Int).SetInt64(qelem.V), spk.N))
 	}
 	first.Mod(first, spk.N)
