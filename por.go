@@ -209,7 +209,6 @@ import (
 	"crypto/sha512"
 	"crypto/rand"
 	"crypto/rsa"
-//	"encoding/binary"
 	"encoding/gob"
 	"fmt"
 	"math"
@@ -341,32 +340,36 @@ func verify_one(tau Tau, spk *rsa.PublicKey) []QElement {
 
 	// l := tau.Tau_zero.n / 2
 	l := int64 (2)
-	// n_bigint := big.NewInt(tau.Tau_zero.n)
+	n_bigint := big.NewInt(tau.Tau_zero.n)
 	ret := make([]QElement, l)
-	ret[0] = QElement{1, 1}
-	ret[1] = QElement{3, 2}
-	return ret
-/*	for i := int64 (0); i < l; i++ {
+	for i := int64 (0); i < l; i++ {
 		I_bignum := new(big.Int)
 		for {
 			I_bignum, err = rand.Int(rand.Reader, n_bigint)
 			if err != nil {
 				panic(err)
 			}
-			if I_bignum.Cmp(big.NewInt(1)) == +1 {
+			if I_bignum.Cmp(big.NewInt(0)) == +1 {
 				break;
 			}
 		}
-		I[i] = I_bignum.Int64()
+		ret[i].I = I_bignum.Int64()
 
-		Q_bytes := make([]byte, 4)
-		_, err = rand.Read(Q_bytes)
-		if err != nil {
-			panic(err)
+		Q_bignum := new(big.Int)
+		for {
+			Q_bytes := make([]byte, 4)
+			_, err = rand.Read(Q_bytes)
+			if err != nil {
+				panic(err)
+			}
+			Q_bignum = new(big.Int).SetBytes(Q_bytes)
+			if Q_bignum.Cmp(big.NewInt(0)) == +1 {
+				break;
+			}
 		}
-		V[i], _ = binary.Varint(Q_bytes)
+		ret[i].V = Q_bignum.Int64()
 	}
-*/
+	return ret
 }
 
 func prove(q []QElement, authenticators []*big.Int, spk *rsa.PublicKey, file *os.File) (_Mu []*big.Int, _Sigma *big.Int) {
