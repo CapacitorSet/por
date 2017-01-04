@@ -302,13 +302,7 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 
 	sigmas := make([]*big.Int, n)
 	for i := int64 (0); i < n; i++ {
-/*		i_bytes := make([]byte, 4)
-		binary.PutVarint(i_bytes, i)
-		hashArgument := append(tau_zero.name, i_bytes...)
-		hash := sha512.Sum512(hashArgument)*/
 		hash_bigint := hashNameI(tau_zero.name, i + 1)
-/*		hash_bigint := new(big.Int)
-		hash_bigint.SetBytes(hash[:])*/
 
 		productory := big.NewInt(1)
 		for j := int64 (0); j < s; j++ {
