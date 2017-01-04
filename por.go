@@ -201,7 +201,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package main;
+package por;
 
 import (
 	"bytes"
@@ -211,7 +211,6 @@ import (
 	"crypto/sha512"
 	"encoding/binary"
 	"encoding/gob"
-	"fmt"
 	"math"
 	"math/big"
 	"os"
@@ -321,7 +320,7 @@ type QElement struct {
 	V int64
 }
 
-func verify_one(tau Tau, spk *rsa.PublicKey) []QElement {
+func Verify_one(tau Tau, spk *rsa.PublicKey) []QElement {
 	// Verifica che tau sia corretto
 	var tau_zero_bytes bytes.Buffer
 	enc := gob.NewEncoder(&tau_zero_bytes)
@@ -370,7 +369,7 @@ func verify_one(tau Tau, spk *rsa.PublicKey) []QElement {
 	return ret
 }
 
-func prove(q []QElement, authenticators []*big.Int, spk *rsa.PublicKey, file *os.File) (_Mu []*big.Int, _Sigma *big.Int) {
+func Prove(q []QElement, authenticators []*big.Int, spk *rsa.PublicKey, file *os.File) (_Mu []*big.Int, _Sigma *big.Int) {
 	matrix, s, _ := split(file)
 
 	mu := make([]*big.Int, s)
@@ -392,7 +391,7 @@ func prove(q []QElement, authenticators []*big.Int, spk *rsa.PublicKey, file *os
 	return mu, sigma
 }
 
-func verify_two(tau Tau, q []QElement, mus []*big.Int, sigma *big.Int, spk *rsa.PublicKey) bool {
+func Verify_two(tau Tau, q []QElement, mus []*big.Int, sigma *big.Int, spk *rsa.PublicKey) bool {
 	// Todo: check that the values are in range
 	first := new(big.Int).SetInt64(1)
 	for _, qelem := range q {
@@ -410,35 +409,4 @@ func verify_two(tau Tau, q []QElement, mus []*big.Int, sigma *big.Int, spk *rsa.
 	second.Mod(second, spk.N)
 
 	return new(big.Int).Mod(new(big.Int).Mul(first, second), spk.N).Cmp(new(big.Int).Exp(sigma, new(big.Int).SetInt64(int64 (spk.E)), spk.N)) == 0
-}
-
-func main() {
-	fmt.Printf("Generating RSA keys...\n")
-	spk, ssk := Keygen()
-	fmt.Printf("Generated!\n")
-
-	fmt.Printf("Signing file...\n")
-	file, err := os.Open("./example.txt")
-	if err != nil {
-		panic(err)
-	}
-	tau, authenticators := St(ssk, file)
-	fmt.Printf("Signed!\n")
-
-	fmt.Printf("Generating challenge...\n")
-	q := verify_one(tau, spk)
-	fmt.Printf("Generated!\n")
-
-	fmt.Printf("Issuing proof...\n")
-	mu, sigma := prove(q, authenticators, spk, file)
-	fmt.Printf("Issued!\n")
-
-	fmt.Printf("Verifying proof...\n")
-	yes := verify_two(tau, q, mu, sigma, spk)
-	fmt.Printf("Result: %t!\n", yes)
-	if yes {
-		os.Exit(0)
-	} else {
-		os.Exit(1)
-	}
 }
