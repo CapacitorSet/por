@@ -235,7 +235,7 @@ type Tau struct {
 	signature []byte
 }
 
-func split(file *os.File) (M [][]byte, S int64, N int64) {
+func Split(file *os.File) (M [][]byte, S int64, N int64) {
 	file.Seek(0, 0)
 	s := int64 (3)
 
@@ -267,7 +267,7 @@ func hashNameI(name []byte, i int64) *big.Int {
 }
 
 func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
-	matrix, s, n := split(file)
+	matrix, s, n := Split(file)
 	tau_zero := Tau_zero{n: n}
 
 	tau_zero.name = make([]byte, 512)
@@ -370,7 +370,7 @@ func Verify_one(tau Tau, spk *rsa.PublicKey) []QElement {
 }
 
 func Prove(q []QElement, authenticators []*big.Int, spk *rsa.PublicKey, file *os.File) (_Mu []*big.Int, _Sigma *big.Int) {
-	matrix, s, _ := split(file)
+	matrix, s, _ := Split(file)
 
 	mu := make([]*big.Int, s)
 	for j := int64 (0); j < s; j++ {
