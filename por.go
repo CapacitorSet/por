@@ -266,6 +266,19 @@ func hashNameI(name []byte, i int64) *big.Int {
 	return new(big.Int).SetBytes(hash_array[:])
 }
 
+func GenerateAuthenticator(i int64, s int64, tau_zero Tau_zero, piece []byte, ssk *rsa.PrivateKey) *big.Int {
+	hash_bigint := hashNameI(tau_zero.name, i + 1)
+
+	productory := big.NewInt(1)
+	for j := int64 (0); j < s; j++ {
+		piece_bigint := new(big.Int).SetBytes([]byte{piece[j]})
+		productory.Mul(productory, new(big.Int).Exp(&tau_zero.U[j], piece_bigint, nil))
+	}
+
+	innerProduct := new(big.Int).Mul(hash_bigint, productory)
+	return new(big.Int).Exp(innerProduct, ssk.D, ssk.PublicKey.N)
+}
+
 func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 	matrix, s, n := Split(file)
 	tau_zero := Tau_zero{n: n}
@@ -300,17 +313,16 @@ func St(ssk *rsa.PrivateKey, file *os.File) (_tau Tau, _sigma []*big.Int) {
 	tau := Tau{Tau_zero: tau_zero, signature: t_0_signature}
 
 	sigmas := make([]*big.Int, n)
+	// http://www.golangpatterns.info/concurrency/parallel-for-loop
+	sem := make(chan byte, n);
 	for i := int64 (0); i < n; i++ {
-		hash_bigint := hashNameI(tau_zero.name, i + 1)
-
-		productory := big.NewInt(1)
-		for j := int64 (0); j < s; j++ {
-			piece_bigint := new(big.Int).SetBytes([]byte{matrix[i][j]})
-			productory.Mul(productory, new(big.Int).Exp(&tau_zero.U[j], piece_bigint, nil))
-		}
-
-		innerProduct := new(big.Int).Mul(hash_bigint, productory)
-		sigmas[i] = new(big.Int).Exp(innerProduct, ssk.D, ssk.PublicKey.N)
+		go func(i int64) {
+			sigmas[i] = GenerateAuthenticator(i, s, tau_zero, matrix[i], ssk)
+			sem <- 0;
+		} (i)
+	}
+	for i := int64 (0); i < n; i++ {
+		<- sem
 	}
 	return tau, sigmas
 }
