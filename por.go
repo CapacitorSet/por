@@ -201,7 +201,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package por;
+package main;
 
 import (
 	"bytes"
@@ -211,13 +211,14 @@ import (
 	"crypto/sha512"
 	"encoding/binary"
 	"encoding/gob"
+	"fmt"
 	"math"
 	"math/big"
 	"os"
 )
 
 func Keygen() (*rsa.PublicKey, *rsa.PrivateKey) {
-	ssk, err := rsa.GenerateKey(rand.Reader, 2048)
+	ssk, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
 		panic(err)
 	}
@@ -237,7 +238,7 @@ type Tau struct {
 
 func Split(file *os.File) (M [][]byte, S int64, N int64) {
 	file.Seek(0, 0)
-	s := int64 (3)
+	s := int64 (1)
 
 	fileInfo, err := file.Stat()
 	if err != nil {
@@ -414,11 +415,42 @@ func Verify_two(tau Tau, q []QElement, mus []*big.Int, sigma *big.Int, spk *rsa.
 	first.Mod(first, spk.N)
 
 	second := new(big.Int).SetInt64(1)
-	s := int64 (3)
+	s := int64 (1)
 	for j := int64 (0); j < s; j++ {
 		second.Mul(second, new(big.Int).Exp(&tau.Tau_zero.U[j], mus[j], spk.N))
 	}
 	second.Mod(second, spk.N)
 
 	return new(big.Int).Mod(new(big.Int).Mul(first, second), spk.N).Cmp(new(big.Int).Exp(sigma, new(big.Int).SetInt64(int64 (spk.E)), spk.N)) == 0
+}
+
+func main() {
+	fmt.Printf("Generating RSA keys...\n")
+	spk, ssk := Keygen()
+	fmt.Printf("Generated!\n")
+
+	fmt.Printf("Signing file...\n")
+	file, err := os.Open("./example.txt")
+	if err != nil {
+		panic(err)
+	}
+	tau, authenticators := St(ssk, file)
+	fmt.Printf("Signed!\n")
+
+	fmt.Printf("Generating challenge...\n")
+	q := Verify_one(tau, spk)
+	fmt.Printf("Generated!\n")
+
+	fmt.Printf("Issuing proof...\n")
+	mu, sigma := Prove(q, authenticators, spk, file)
+	fmt.Printf("Issued!\n")
+
+	fmt.Printf("Verifying proof...\n")
+	yes := Verify_two(tau, q, mu, sigma, spk)
+	fmt.Printf("Result: %t!\n", yes)
+	if yes {
+		os.Exit(0)
+	} else {
+		os.Exit(1)
+	}
 }
